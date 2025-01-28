@@ -1,0 +1,24 @@
+<div class="popup-div">
+    <h3>{{isbn13}}</h3>
+    <p>{{isbn_info}}</p>
+    <a href=https://covers.openlibrary.org/b/isbn/{{isbn13}}-L.jpg?default=false target="_blank"> 
+        <!-- ^ this is to get even higher resolution when clicking on book cover ^ -->
+        <img src="https://covers.openlibrary.org/b/isbn/{{isbn13}}-M.jpg?default=false" alt="Book cover not found">
+    </a>
+{% if meta["Title"] %}    
+    <p>Title: {{meta["Title"]}}</p>
+{% endif %}
+
+{% if meta["Authors"] and meta["Authors"] | select('string') | list | length > 0 %}
+    <p>Authors: {{ meta["Authors"] | join(', ') }}</p>
+{% endif %}
+
+{% if meta["Publisher"] %}
+    <p>Publisher: {{ meta["Publisher"] }}</p>
+{% endif %}
+
+{% if meta["Year"] %}
+    <p>Year: {{ meta["Year"] }}</p>
+{% endif %}
+    <h5><a href={{AAlink}} target="_blank">Anna's Archive</a> <a href={{OLlink}} target="_blank">Open Library</a></h5>
+</div>

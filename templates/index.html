@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+    <link rel="icon" type="image/png" href="data:image/webp;base64,UklGRjwAAABXRUJQVlA4TC8AAAAvD8ADAB8gEEjaH3qN+Y/5D44CaiJJiponRAwOEE+KGHLyV0FE/5PRfSlyhWZNWwA=">
+    <style type="text/css">
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+        }
+        .pair-container {
+          margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Configure ISBN Map</h1>
+    <h2>Assign colors to represent specific datasets:</h2>
+    <form id="dataset-color-form" method="get" action="/map">
+    <div id="pair-list"></div>
+    <button type="button" id="add-pair-button">Add Dataset-Color Pair</button>
+    <button type="submit" id="submit-button">Submit</button>
+  </form>
+
+  <script>
+    const MAX_PAIRS = 10;
+    const datasetOptions = {{ datasets | tojson }};
+    const colorOptions = ['Red', 'Green', 'Blue'];
+    const pairList = document.getElementById('pair-list');
+    const addPairButton = document.getElementById('add-pair-button');
+    const submitButton = document.getElementById('submit-button');
+    let pairCount = 0;
+
+    function createDropdown(options, name) {
+      const select = document.createElement('select');
+      select.name = name;
+      options.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.toLowerCase();
+        optionElement.textContent = option;
+        select.appendChild(optionElement);
+      });
+      return select;
+    }
+
+    function addPair(defaultPair = false) {
+      if (pairCount >= MAX_PAIRS) return;
+
+      const pairContainer = document.createElement('div');
+      pairContainer.classList.add('pair-container');
+
+      const datasetDropdown = createDropdown(datasetOptions, `dataset-${pairCount}`);
+      const colorDropdown = createDropdown(colorOptions, `color-${pairCount}`);
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.textContent = 'Remove';
+      removeButton.onclick = () => {
+        pairContainer.remove();
+        pairCount--;
+        updateFormState();
+      };
+
+      pairContainer.appendChild(datasetDropdown);
+      pairContainer.appendChild(colorDropdown);
+      if (!defaultPair) {
+        pairContainer.appendChild(removeButton);
+      }
+
+      pairList.appendChild(pairContainer);
+      pairCount++;
+      updateFormState();
+    }
+
+    function updateFormState() {
+      addPairButton.disabled = pairCount >= MAX_PAIRS;
+      submitButton.disabled = pairCount === 0;
+    }
+
+    // Add one pair by default on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      addPair(true);
+    });
+
+    addPairButton.addEventListener('click', () => addPair());
+  </script>
+</body>
+</html>

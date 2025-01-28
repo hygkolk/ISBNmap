@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISBN Map</title>
+    <link rel="icon" type="image/png" href="data:image/webp;base64,UklGRjwAAABXRUJQVlA4TC8AAAAvD8ADAB8gEEjaH3qN+Y/5D44CaiJJiponRAwOEE+KGHLyV0FE/5PRfSlyhWZNWwA=">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        /* Flex container for search and map */
+        .map-container {
+            display: flex;
+            flex-direction: column; /* Stack search and map vertically */
+            height: 100vh; /* Full height of the viewport */
+        }
+
+        /* Search Form Styling */
+        #search-form {
+            display: flex;
+            justify-content: space-between; /* Distribute space between the links and search */
+            align-items: center; /* Vertically align items */
+            padding: 5px;
+            background: #f4f4f4;
+            border-bottom: 1px solid #ddd;
+            flex-wrap: wrap;
+        }
+
+        /* Styling for Links (Home and Home2) */
+        #home-link, #home2-link {
+            font-size: 16px;
+            color: #007bff;
+            text-decoration: none;
+            padding: 8px 16px;
+        }
+
+        #home-link:hover, #home2-link:hover {
+            background-color: #f4f4f4;
+            color: #0056b3;
+        }
+
+        /* Search Bar and Button Styling (centered and inline) */
+        #search-input {
+            width: 100%;
+            padding: 4px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        #search-button {
+            padding: 5px 16px;
+            font-size: 16px;
+            margin-left: 8px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #search-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Map Container */
+        #map {
+            flex-grow: 1; /* Makes the map container grow to fill remaining space */
+            width: 100%; /* Full width of the container */
+        }
+
+        /* Leaflet Tile Styling */
+        .leaflet-tile {
+            image-rendering: pixelated; /* Good for pixel art or sharp scaling */
+        }
+
+        /* Popup Styling */
+        .popup-div {
+            text-align: center;
+        }
+        .popup-div p,
+        .popup-div h3,
+        .popup-div h5 {
+            margin: 5px 0;
+            line-height: 1;
+        }
+        .popup-div img {
+            max-height: 300px;
+            width: 100%;
+            object-fit: contain;
+            color:red;
+        }
+    </style>
+</head>
+<body>
+    <!-- Map Container with Search Form and Map -->
+    <div class="map-container">
+        <!-- Search Bar -->
+        <form id="search-form">
+            <!-- Home Link on the Left -->
+            <a href='/' id="home-link">Map Settings</a>
+            
+            <!-- Search Input and Button (aligned horizontally) -->
+            <div style="display: flex; align-items: center;">
+                <input type="text" id="search-input" placeholder="Enter ISBN to locate" />
+                <button type="submit" id="search-button">Search</button>
+            </div>
+
+            <!-- Home2 Link on the Right -->
+            <a href="https://annas-archive.se/blog/all-isbns.html" id="home2-link">Anna's Blog</a>
+        </form>
+
+        <!-- Map -->
+        <div id="map"></div>
+    </div>
+
+    <script>
+        // Initialize Map
+        const map = L.map('map', {
+            crs: L.CRS.Simple,
+            center: [-128, 128],
+            zoom: 0,
+        });
+
+        const overlays = {};
+
+        // Dynamically Add Layers from Flask Variables
+        {% for dataset, color in pairs %}
+            map.createPane('pane{{ loop.index }}');
+            map.getPane('pane{{ loop.index }}').style.mixBlendMode = 'lighten';
+
+            const layer{{ loop.index }} = L.tileLayer('/static/tiles/{{ dataset }}/{{ color }}/{z}/{y}/{x}.webp', {
+                zoomReverse: true,
+                maxZoom: 16,
+                bounds: [[0, 0], [-256, 256]],
+                pane: 'pane{{ loop.index }}'
+            }).addTo(map);
+
+            overlays["{{ dataset }} - {{ color }}"] = layer{{ loop.index }};
+        {% endfor %}
+
+        // Static Layers
+        const countries = L.tileLayer('/static/tiles/countries/{z}/{y}/{x}.webp', {
+            zoomReverse: true,
+            maxZoom: 16,
+            bounds: [[0, 0], [-256, 256]],
+            opacity: 0.2,
+        });
+
+        const publishers = L.tileLayer('/static/tiles/publishers/{z}/{y}/{x}.webp', {
+            zoomReverse: true,
+            maxZoom: 16,
+            bounds: [[0, 0], [-256, 256]],
+            opacity: 0.2,
+        });
+
+        const bookCovers = L.tileLayer('/static/tiles/book_covers/{z}/{y}/{x}.jpg', {
+            zoomReverse: true,
+            maxZoom: 16,
+            bounds: [[0, 0], [-256, 256]],
+        }).addTo(map);
+
+        // Add Layer Control to the Map
+        L.control.layers({
+            "Book Covers (only at max zoom)": bookCovers
+        }, {
+            ...overlays,
+            "Country Overlay": countries,
+            "Publisher Overlay": publishers
+        }).addTo(map);
+
+        // Function to Create Popups
+        function createPopup(lat, lng) {
+            if (lat >= -256 && lat < 0 && lng >= 0 && lng <= 256) {
+                fetch(`/get_popup?lat=${lat}&lng=${lng}`)
+                    .then(response => response.text())
+                    .then(data => {
+                        L.popup()
+                            .setLatLng([lat, lng])
+                            .setContent(data)
+                            .openOn(map);
+                    });
+            } else {
+                console.log("Coordinates are out of range.");
+            }
+        }
+
+        // Map Click Event to Show Popups
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            createPopup(lat, lng);
+        });
+
+        // Prevent Form Submission and Handle Search
+        document.getElementById('search-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            performSearch();
+        });
+
+        // Perform Search Function
+        function performSearch() {
+            let isbn = document.getElementById('search-input').value.trim();
+            isbn = isbn.replace(/-/g, '');
+
+            // Use a default value if input is empty
+            if (!isbn) {
+                isbn = '978039480038x';
+            }
+
+            const isbnWithoutLast = isbn.slice(0, -1);
+
+            // Validate the ISBN
+            if (isbnWithoutLast.length === 12 && !isNaN(isbnWithoutLast)) {
+                let isbnAsInteger = parseInt(isbnWithoutLast, 10);
+                isbnAsInteger -= 978000000000; // Adjust ISBN integer value
+                const y = Math.floor(isbnAsInteger / -65536) / 256 + 128 / 65536;
+                const x = (isbnAsInteger % 65536) / 256 + 128 / 65536;
+
+                createPopup(y, x);
+                map.setView([y, x], 12);
+            } else {
+                alert('Please enter a valid 13-digit ISBN');
+            }
+        }
+    </script>
+</body>
+</html>

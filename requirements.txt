@@ -1,0 +1,8 @@
+bencode.py
+Flask
+isbnlib
+numpy
+opencv-python
+requests
+tqdm
+zstandard
